@@ -1,0 +1,22 @@
+# HELP node_systemd_unit_state Controlled Asterisk service state for the release lab.
+# TYPE node_systemd_unit_state gauge
+node_systemd_unit_state{name="asterisk.service",state="active",type="simple"} 1
+node_systemd_unit_state{name="asterisk.service",state="failed",type="simple"} 0
+# HELP node_filesystem_size_bytes Controlled recording filesystem size.
+# TYPE node_filesystem_size_bytes gauge
+node_filesystem_size_bytes{device="lab-recording",fstype="ext4",mountpoint="/var/spool/asterisk/monitor"} 104857600
+# HELP node_filesystem_avail_bytes Controlled recording filesystem available bytes.
+# TYPE node_filesystem_avail_bytes gauge
+node_filesystem_avail_bytes{device="lab-recording",fstype="ext4",mountpoint="/var/spool/asterisk/monitor"} 78643200
+# HELP node_filesystem_files Controlled recording filesystem inode count.
+# TYPE node_filesystem_files gauge
+node_filesystem_files{device="lab-recording",fstype="ext4",mountpoint="/var/spool/asterisk/monitor"} 10000
+# HELP node_filesystem_files_free Controlled recording filesystem free inode count.
+# TYPE node_filesystem_files_free gauge
+node_filesystem_files_free{device="lab-recording",fstype="ext4",mountpoint="/var/spool/asterisk/monitor"} 9000
+# HELP asterforge_recording_generation_failures_total Reliable test-owned recording failure counter.
+# TYPE asterforge_recording_generation_failures_total counter
+asterforge_recording_generation_failures_total 2
+# HELP asterforge_recording_generation_last_failure_timestamp_seconds Last controlled failure time.
+# TYPE asterforge_recording_generation_last_failure_timestamp_seconds gauge
+asterforge_recording_generation_last_failure_timestamp_seconds 1789387200

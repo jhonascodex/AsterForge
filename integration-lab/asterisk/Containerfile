@@ -1,0 +1,22 @@
+FROM docker.io/library/alpine:3.24
+
+RUN apk add --no-cache \
+      asterisk=22.9.0-r0 \
+      prometheus-node-exporter=1.11.1-r0 \
+      su-exec=0.3-r0
+
+COPY config/ /etc/asterisk/
+COPY node-exporter/ /var/lib/node_exporter/textfile_collector/
+COPY release-lab-entrypoint.sh /usr/local/bin/release-lab-entrypoint
+
+RUN chmod 0755 /usr/local/bin/release-lab-entrypoint \
+    && mkdir -p /var/log/asterisk /var/run/asterisk /var/spool/asterisk/monitor \
+    && chown -R asterisk:asterisk \
+      /etc/asterisk \
+      /var/lib/node_exporter \
+      /var/log/asterisk \
+      /var/run/asterisk \
+      /var/spool/asterisk
+
+EXPOSE 5038 5060/udp 9100
+ENTRYPOINT ["/usr/local/bin/release-lab-entrypoint"]

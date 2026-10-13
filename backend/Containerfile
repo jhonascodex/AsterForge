@@ -1,0 +1,45 @@
+FROM docker.io/library/python:3.14-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+WORKDIR /build
+COPY pyproject.toml ./
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+RUN python -m pip install --prefix=/install .
+
+FROM builder AS test-builder
+RUN python -m pip install --prefix=/test-install ".[dev]"
+
+FROM docker.io/library/python:3.14-slim AS test
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/home/asterforge/.local/bin:$PATH
+RUN groupadd --system --gid 10001 asterforge \
+    && useradd --system --uid 10001 --gid asterforge --create-home asterforge
+WORKDIR /app
+COPY --from=test-builder /test-install /usr/local
+COPY --chown=asterforge:asterforge app ./app
+COPY --chown=asterforge:asterforge migrations ./migrations
+COPY --chown=asterforge:asterforge tests ./tests
+COPY --chown=asterforge:asterforge alembic.ini pyproject.toml ./
+USER 10001:10001
+CMD ["python", "-m", "pytest"]
+
+FROM docker.io/library/python:3.14-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/home/asterforge/.local/bin:$PATH
+RUN groupadd --system --gid 10001 asterforge \
+    && useradd --system --uid 10001 --gid asterforge --create-home asterforge
+WORKDIR /app
+COPY --from=builder /install /usr/local
+COPY --chown=asterforge:asterforge app ./app
+COPY --chown=asterforge:asterforge migrations ./migrations
+COPY --chown=asterforge:asterforge alembic.ini ./
+USER 10001:10001
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

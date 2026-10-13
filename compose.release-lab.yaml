@@ -1,0 +1,116 @@
+name: asterforge-release-lab
+
+x-backend-environment: &backend-environment
+  ASTERFORGE_ENVIRONMENT: test
+  ASTERFORGE_DATABASE_URL: postgresql+asyncpg://asterforge_lab:test-only-database-password@lab-database:5432/asterforge_lab
+  ASTERFORGE_INTEGRATION_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+
+services:
+  lab-database:
+    image: docker.io/library/postgres:18-alpine
+    environment:
+      POSTGRES_DB: asterforge_lab
+      POSTGRES_USER: asterforge_lab
+      POSTGRES_PASSWORD: test-only-database-password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asterforge_lab -d asterforge_lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - lab_postgres_data:/var/lib/postgresql
+    networks:
+      - lab-internal
+
+  lab-asterisk:
+    image: localhost/asterforge-release-lab-asterisk:22.9.0
+    build:
+      context: ./integration-lab/asterisk
+      dockerfile: Containerfile
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core waitfullybooted"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - lab_asterisk_logs:/var/log/asterisk
+    networks:
+      - lab-internal
+
+  lab-backend:
+    image: localhost/asterforge-release-lab-backend:0.1.0
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+      target: runtime
+    environment:
+      <<: *backend-environment
+      ASTERFORGE_CORS_ORIGINS: '["http://release-lab.invalid"]'
+      ASTERFORGE_SESSION_COOKIE_SECURE: "false"
+      ASTERFORGE_BOOTSTRAP_ADMIN_USERNAME: release-lab-admin
+      ASTERFORGE_BOOTSTRAP_ADMIN_PASSWORD: test-only-temporary-password
+      ASTERFORGE_AMI_MONITORING_ENABLED: "true"
+      ASTERFORGE_AMI_CONNECT_TIMEOUT_SECONDS: "3"
+      ASTERFORGE_AMI_ACTION_TIMEOUT_SECONDS: "3"
+      ASTERFORGE_AMI_POLL_INTERVAL_SECONDS: "2"
+      ASTERFORGE_AMI_INVENTORY_REFRESH_SECONDS: "1"
+      ASTERFORGE_AMI_RECONNECT_MIN_SECONDS: "1"
+      ASTERFORGE_AMI_RECONNECT_MAX_SECONDS: "3"
+      ASTERFORGE_HOST_TELEMETRY_ENABLED: "true"
+      ASTERFORGE_HOST_TELEMETRY_PORT: "9100"
+      ASTERFORGE_HOST_TELEMETRY_TIMEOUT_SECONDS: "3"
+      ASTERFORGE_HOST_TELEMETRY_POLL_INTERVAL_SECONDS: "5"
+      ASTERFORGE_HOST_TELEMETRY_INVENTORY_REFRESH_SECONDS: "1"
+      ASTERFORGE_HOST_TELEMETRY_RECORDING_MOUNTPOINT: /var/spool/asterisk/monitor
+      ASTERFORGE_LOG_INGESTION_ENABLED: "true"
+      ASTERFORGE_LOG_SOURCE_ROOT: /var/lib/asterforge/log-sources
+      ASTERFORGE_LOG_POLL_INTERVAL_SECONDS: "1"
+      ASTERFORGE_LOG_INVENTORY_REFRESH_SECONDS: "1"
+      ASTERFORGE_LOG_RETENTION_INTERVAL_SECONDS: "60"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+    volumes:
+      - lab_asterisk_logs:/var/lib/asterforge/log-sources/00000000-0000-4000-8000-000000000016:ro
+    networks:
+      - lab-internal
+
+  lab-migrate:
+    image: localhost/asterforge-release-lab-backend:0.1.0
+    environment:
+      <<: *backend-environment
+    command: ["alembic", "upgrade", "head"]
+    networks:
+      - lab-internal
+
+  lab-seed:
+    image: localhost/asterforge-release-lab-backend:0.1.0
+    environment:
+      <<: *backend-environment
+    command: ["python", "/release-lab/seed.py"]
+    volumes:
+      - ./integration-lab:/release-lab:ro
+    networks:
+      - lab-internal
+
+  lab-verify:
+    image: localhost/asterforge-release-lab-backend:0.1.0
+    environment:
+      <<: *backend-environment
+      ASTERFORGE_RELEASE_LAB_BACKEND_URL: http://lab-backend:8000
+      ASTERFORGE_RELEASE_LAB_ASTERISK_HOST: lab-asterisk
+    command: ["python", "/release-lab/verify.py"]
+    volumes:
+      - ./integration-lab:/release-lab:ro
+    networks:
+      - lab-internal
+
+networks:
+  lab-internal:
+    internal: true
+
+volumes:
+  lab_postgres_data:
+  lab_asterisk_logs:

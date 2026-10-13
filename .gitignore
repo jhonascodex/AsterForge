@@ -1,0 +1,33 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+
+# Frontend
+node_modules/
+.cache/
+
+# Logs
+*.log
+/log-sources/*
+!/log-sources/.gitkeep
+
+# IDE
+.idea/
+.vscode/

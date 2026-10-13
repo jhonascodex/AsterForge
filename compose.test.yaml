@@ -1,0 +1,57 @@
+name: asterforge-test
+
+services:
+  test-database:
+    image: docker.io/library/postgres:18-alpine
+    environment:
+      POSTGRES_DB: asterforge_test
+      POSTGRES_USER: asterforge_test
+      POSTGRES_PASSWORD: test-only-not-a-deployment-secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asterforge_test -d asterforge_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - test_postgres_data:/var/lib/postgresql
+    networks:
+      - test-internal
+
+  migrate-test:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+      target: runtime
+    environment: &test-environment
+      ASTERFORGE_ENVIRONMENT: test
+      ASTERFORGE_DATABASE_URL: postgresql+asyncpg://asterforge_test:test-only-not-a-deployment-secret@test-database:5432/asterforge_test
+      ASTERFORGE_INTEGRATION_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      test-database:
+        condition: service_healthy
+    networks:
+      - test-internal
+
+  backend-tests:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+      target: test
+    environment:
+      <<: *test-environment
+      ASTERFORGE_TEST_DATABASE_URL: postgresql+asyncpg://asterforge_test:test-only-not-a-deployment-secret@test-database:5432/asterforge_test
+      ASTERFORGE_RUN_POSTGRES_TESTS: "1"
+      ASTERFORGE_TEST_RUN_ID: ${ASTERFORGE_TEST_RUN_ID:?The isolated test runner must set ASTERFORGE_TEST_RUN_ID}
+    depends_on:
+      test-database:
+        condition: service_healthy
+    networks:
+      - test-internal
+
+networks:
+  test-internal:
+    internal: true
+
+volumes:
+  test_postgres_data:

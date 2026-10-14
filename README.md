@@ -9,7 +9,7 @@ Podman workflows, authentication/RBAC, secure Asterisk server inventory, and res
 monitoring. V1 is strictly read-only toward Asterisk; configuration changes
 and live-call controls are outside its scope.
 
-> **Project status:** pre-release and intended for development or evaluation, not production use.
+> **Project Status:** AsterForge Monitoring V1 development is complete. The implemented functionality has successfully passed the planned functional and integration tests, including validation against an Asterisk test environment. The first public release (v1.0.0) is being prepared.
 
 ## What currently runs
 
